@@ -1,0 +1,191 @@
+% DEFS
+%species
+tff(species_type,type,
+    species: $tType ).
+
+%eat
+tff(eat_decl,type,
+    eat: ( species * species ) > $o ).
+
+%food link
+tff(link_decl,type,
+    link: ( species * species ) > $o ).
+
+%primary producer
+tff(primary_producer_decl,type,
+    primary_producer: species > $o ).
+
+%apex predator
+tff(apex_predator_decl,type,
+    apex_predator: species > $o ).
+
+%food chain
+tff(food_chain_decl,type,
+    food_chain: ( species * species ) > $o ).
+
+%complete food chain
+tff(complete_chain_decl,type,
+    complete_chain: ( species * species ) > $o ).
+
+%depends
+tff(depends_decl,type,
+    depends: ( species * species ) > $o ).
+
+%AXIOMS
+
+%eater of a food link eats the eaten
+tff(eater_eats_eaten,axiom,
+    ! [X: species,Y: species] :
+      ( link(X,Y)
+     => eat(Y,X) ) ).
+
+%the eaten and eater are not the same (no cannibalism)
+tff(no_cannibalism,axiom,
+    ! [X: species,Y: species] :
+      ( link(X,Y)
+     => ( X != Y ) ) ).
+
+%every species eats something OR is eaten by something 
+tff(all_species_eat,axiom,
+    ! [S: species] :
+      ( ? [T: species] : eat(S,T)
+      | ? [T: species] : eat(T,S) ) ).
+
+%primary producer eats no other species - producer def
+tff(primary_producer_def,axiom,
+    ! [P: species] :
+      ( primary_producer(P)
+    <=> ! [X: species] : ~ eat(P,X) ) ).
+
+%apex predator if nothing eats it - predator def
+tff(apex_predator_def,axiom,
+    ! [A: species] :
+      ( apex_predator(A)
+    <=> ! [X: species] : ~ eat(X,A) ) ).
+
+%For every food chain, the start of the chain is the eaten of some food link, and one of the following holds: (i) the eater of the food link is the end of the food chain, xor (ii) there is a shorter food chain (shorter by one food link) from the eater of the food link to the end of the whole food chain. 
+
+tff(single_chain,axiom,
+    ! [X: species,Y: species] :
+      ( link(X,Y)
+     => food_chain(X,Y) ) ).
+
+tff(multi_chain,axiom,
+    ! [X: species,Y: species,Z: species] :
+      ( ( link(X,Y)
+        & food_chain(Y,Z) )
+     => food_chain(X,Z) ) ).
+
+%There is no food chain from a species back to itself (no death spirals)
+
+tff(no_death_spiral,axiom,
+    ! [X: species] : ~ food_chain(X,X) ).
+
+%A complete food chain starts at a primary producer, and ends at an apex predator.
+
+tff(complete_chain_def,axiom,
+    ! [S: species,E: species] :
+      ( complete_chain(S,E)
+    <=> ( food_chain(S,E)
+        & primary_producer(S)
+        & apex_predator(E) ) ) ).
+
+%Every species is in some complete food chain, i.e., (i) the species is the primary producer start of the complete food chain, or (ii) the species is the apex predator at the end of the complete food chain, or (iii) there is a non-complete food chain from the start of the complete food chain to the species, and another non-complete food chain from the species to the end of the complete food chain. 
+
+tff(every_species_in_complete,axiom,
+    ! [X: species] :
+    ? [S: species,E: species] :
+      ( complete_chain(S,E)
+      & ( ( X = S )
+        | ( X = E )
+        | ( food_chain(S,X)
+          & food_chain(X,E) ) ) ) ).
+
+%Given two species, the first depends on the second iff there is a food chain from the second to the first
+
+tff(depends_def,axiom,
+    ! [A: species,B: species] :
+      ( depends(A,B)
+    <=> food_chain(B,A) ) ).
+
+%make sure eating also implies linking (so it works both ways)
+tff(eat_implies_link,axiom,
+    ! [Eater: species,Eaten: species] :
+      ( eat(Eater,Eaten)
+     => link(Eaten,Eater) ) ).
+
+%THEOREMS
+
+%If something is a primary producer then there is no food link such that the primary producer is the eater of the food link
+
+tff(primary_producer_no_eat,conjecture,
+    ! [P: species] :
+      ( primary_producer(P)
+     => ~ ? [X: species] : link(X,P) ) ).
+
+%Every primary producer is eaten by some other species
+tff(primary_producer_is_eaten,conjecture,
+    ! [P: species] :
+      ( primary_producer(P)
+     => ? [S: species] : eat(S,P) ) ).
+
+%If a species is not a primary producer then there is another species that it eats
+tff(non_producers_do_eat,conjecture,
+    ! [S: species] :
+      ( ~ primary_producer(S)
+     => ? [T: species] : eat(S,T) ) ).
+
+%If something is an apex predator then there is no food link such that the apex predator is the eaten of the food link
+tff(apex_no_link,conjecture,
+    ! [A: species] :
+      ( apex_predator(A)
+     => ~ ? [X: species] : link(A,X) ) ).
+
+%Every apex predator eats some other species
+tff(every_apex_eats,conjecture,
+    ! [A: species] :
+      ( apex_predator(A)
+     => ? [X: species] : eat(A,X) ) ).
+
+%If a species is not a apex predator then there is another species that eats it
+tff(non_apex_are_eaten,conjecture,
+    ! [S: species] :
+      ( ~ apex_predator(S)
+     => ? [T: species] : eat(T,S) ) ).
+
+%The start species of a complete food chain does not eat the end species. 
+tff(start_dont_eat_end,conjecture,
+    ! [S: species,E: species] :
+      ( complete_chain(S,E)
+     => ~ eat(S,E) ) ).
+
+%If a species is neither a primary producer nor an apex predator, then there is a food chain from a primary producer to that species, and another food chain from that species to an apex predator
+
+tff(middle_species,conjecture,
+    ! [X: species] :
+      ( ( ~ primary_producer(X)
+        & ~ apex_predator(X) )
+     => ? [P: species,A: species] :
+          ( primary_producer(P)
+          & apex_predator(A)
+          & food_chain(P,X)
+          & food_chain(X,A) ) ) ).
+
+%If a species is not an apex predator then there is an apex predator that depends on the species. 
+tff(not_apex_then_depends,conjecture,
+    ! [X: species] :
+      ( ~ apex_predator(X)
+     => ? [A: species] :
+          ( apex_predator(A)
+          & depends(A,X) ) ) ).
+
+%An apex predator depends on all primary producers of all complete food chains that end at the apex predator
+tff(apex_depends_on_producers,conjecture,
+    ! [A: species] :
+      ( apex_predator(A)
+     => ! [P: species] :
+          ( ( primary_producer(P)
+            & complete_chain(P,A) )
+         => depends(A,P) ) ) ).
+
+
